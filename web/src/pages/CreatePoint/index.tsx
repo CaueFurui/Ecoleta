@@ -1,6 +1,6 @@
-import React, { useEffect, useState, ChangeEvent } from "react";
+import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import './styles.css'
-import { Link } from 'react-router-dom'
+import { Link, useHistory } from 'react-router-dom'
 import { FiArrowLeft } from 'react-icons/fi'
 import { Map, TileLayer, Marker } from 'react-leaflet'
 import { LeafletMouseEvent } from 'leaflet'
@@ -16,8 +16,11 @@ const CreatePoint = () => {
 
     const [selectedUf, setSelectedUf] = useState('0');
     const [selectedCity, setSelectedCity] = useState('0');
+    const [selectedItems, setSelectedItems] = useState<number[]>([]);
     const [selectedPosition, setSelectedPosition] = useState<[number, number]>([0, 0]);
     const [initialPosition, setInitialPosition] = useState<[number, number]>([0, 0]);
+
+    const history = useHistory();
 
     const [formData, setFormData] = useState({
         name: '',
@@ -89,7 +92,7 @@ const CreatePoint = () => {
     }
 
     //trata o click no mapa escolhendo a posição
-    function handleMapClick(event: LeafletMouseEvent){
+    function handleMapClick(event: LeafletMouseEvent) {
         setSelectedPosition([
             event.latlng.lat,
             event.latlng.lng
@@ -97,9 +100,39 @@ const CreatePoint = () => {
     }
 
     function handleInputChange(event: ChangeEvent<HTMLInputElement>) {
+        const { name, value } = event.target;
 
+        setFormData({ ...formData, [name]: value });
     }
 
+    function handleSelectedItem(id: number) {
+        const alreadySelected = selectedItems.findIndex(item => item == id)
+        
+        if (alreadySelected >= 0) {
+            const filteredItems = selectedItems.filter(item => item !== id)
+            setSelectedItems(filteredItems);
+        } else {
+            setSelectedItems([...selectedItems, id])
+        }
+    }
+
+    async function handleSubmit(event: FormEvent){
+        event.preventDefault();
+
+        const { name, email, whatsapp } = formData;
+        const uf = selectedUf;
+        const city = selectedCity;
+        const [latitude, longitude] = selectedPosition;
+        const items = selectedItems;
+
+        const data = {
+            name, email, whatsapp, uf, city, latitude, longitude, items
+        }
+
+        await api.post("points", data)
+        alert ("Ponto de Coleta criado!")
+        history.push('/')
+    }
 
     return (
         <div id="page-create-point">
@@ -112,7 +145,7 @@ const CreatePoint = () => {
                 </Link>
             </header>
 
-            <form>
+            <form onSubmit={handleSubmit}>
                 <h1>Cadastro do <br /> ponto de coleta</h1>
 
                 <fieldset>
@@ -184,7 +217,7 @@ const CreatePoint = () => {
                         <div className="field">
                             <label htmlFor="city">Cidade:</label>
                             <select name="city" id="city" value={selectedCity} onChange={handleSelectedCity}>
-                            {city.map(city => (
+                                {city.map(city => (
                                     <option key={city} value={city}>{city}</option>
                                 ))}
                                 <option value='0'>Selecione uma cidade</option>
@@ -202,7 +235,10 @@ const CreatePoint = () => {
 
                     <ul className="items-grid">
                         {items.map(item =>
-                            <li key={item.id}>
+                            <li
+                                key={item.id}
+                                className={selectedItems.includes(item.id) ? 'selected' : ''}
+                                onClick={() => handleSelectedItem(item.id)}>
                                 <img src={item.image_url} alt={item.title} />
                                 <span>{item.title}</span>
                             </li>
